@@ -1,131 +1,113 @@
-from fastapi import APIRouter, status, HTTPException, Response
-from app.schemas import TaskCreate, TaskResponse
+from fastapi import APIRouter, status, Depends
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from app.models import User
+from app.schemas import TaskCreate, TaskResponse, TaskUpdate
+from app.database import get_db
+from app.services import task_service
+from app.dependencies import get_current_user
 
 router = APIRouter()
 
-tasks = [
-    {
-        "id": 1,
-        "title": "Learn FastAPI",
-        "completed": False,
-    },
-    {
-        "id": 2,
-        "title": "Learn DSA",
-        "completed": False,
-    },
-    {
-        "id": 3,
-        "title": "Practice DSA",
-        "completed": True,
-    },
-]
 
-
-"""
-  FastAPI()
-    ↓
-Whole application
-
-APIRouter()
-    ↓
-One group of routes
-"""
-
-@router.get("/tasks")
+@router.get(
+    "/tasks",
+    response_model=list[TaskResponse]
+)
 async def get_tasks(
+    current_user: User = Depends(get_current_user),
     completed: bool | None = None,
-    title: str | None = None
+    title: str | None = None,
+    db: AsyncSession = Depends(get_db),
 ):
+    return await task_service.get_tasks(
+        db,
+        current_user.id,
+        completed,
+        title,
+    )
 
-    filtered_tasks = tasks
-
-    if completed is not None:
-
-        temp = []
-
-        for task in filtered_tasks:
-
-            if task["completed"] == completed:
-                temp.append(task)
-
-        filtered_tasks = temp
-
-    if title is not None:
-
-        temp = []
-
-        for task in filtered_tasks:
-
-            if title.lower() in task["title"].lower():
-                temp.append(task)
-
-        filtered_tasks = temp
-
-    return filtered_tasks
 
 @router.get(
     "/tasks/{task_id}",
     response_model=TaskResponse
 )
-async def get_task(task_id: int):
-    for task in tasks:
-        if task["id"] == task_id:
-            return task
-
-    raise HTTPException(
-        status.HTTP_404_NOT_FOUND,
-        detail="Task not found"
+async def get_task(
+    task_id: int,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    return await task_service.get_task(
+        db,
+        task_id,
+        current_user.id,
     )
 
-#pydantic converts json to python object
+
 @router.post(
     "/tasks",
     status_code=status.HTTP_201_CREATED,
     response_model=TaskResponse
 )
-async def create_task(task: TaskCreate):
-
-    new_task = task.model_dump()
-
-    new_task["id"] = len(tasks) + 1
-
-    tasks.append(new_task)
-
-    return new_task
-
-@router.put("/tasks/{task_id}")
-async def update_task(task_id: int, updated_task: TaskCreate):
-
-    for task in tasks:
-
-        if task["id"] == task_id:
-
-            task.update(updated_task.model_dump())
-
-            return task
-
-    raise HTTPException(
-        status_code=status.HTTP_404_NOT_FOUND,
-        detail="Task not found"
+async def create_task(
+    task: TaskCreate,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    return await task_service.create_task(
+        db,
+        task,
+        current_user.id,
     )
-    
+
+
+@router.put(
+    "/tasks/{task_id}",
+    response_model=TaskResponse
+)
+async def update_task(
+    task_id: int,
+    updated_task: TaskCreate,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    return await task_service.update_task(
+        db,
+        task_id,
+        updated_task,
+        current_user.id,
+    )
+
+
+@router.patch(
+    "/tasks/{task_id}",
+    response_model=TaskResponse
+)
+async def patch_task(
+    task_id: int,
+    updated_task: TaskUpdate,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    return await task_service.patch_task(
+        db,
+        task_id,
+        updated_task,
+        current_user.id,
+    )
+
+
 @router.delete(
     "/tasks/{task_id}",
     status_code=status.HTTP_204_NO_CONTENT
 )
-async def delete_task(task_id: int):
-
-    for task in tasks:
-
-        if task["id"] == task_id:
-
-            tasks.remove(task)
-
-            return Response(status_code=status.HTTP_204_NO_CONTENT)
-
-    raise HTTPException(
-        status_code=status.HTTP_404_NOT_FOUND,
-        detail="Task not found"
+async def delete_task(
+    task_id: int,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    await task_service.delete_task(
+        db,
+        task_id,
+        current_user.id,
     )
-    
