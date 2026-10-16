@@ -1,20 +1,26 @@
-# Virtual environment
+# Python virtual environments
 venv/
+venv-linux/
+.venv/
 
-# Python cache
+# Environment variables and secrets
+.env
+.env.*
+!.env.example
+
+# Python cache and compiled files
 __pycache__/
 *.py[cod]
 
-
-# Environment variables / secrets
-.env
-
-# VS Code
-.vscode/
-
-# Test/cache files
+# Testing and coverage
 .pytest_cache/
+.coverage
+htmlcov/
 
-# OS files
+# Editors and operating system
+.vscode/
 .DS_Store
 Thumbs.db
+
+# Logs
+*.log
